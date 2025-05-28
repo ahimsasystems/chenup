@@ -13,6 +13,18 @@
         <maven.compiler.release>24</maven.compiler.release>
     </properties>
 
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/ahimsasystems/chenup</url>
+        </repository>
+        <snapshotRepository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/ahimsasystems/chenup</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+
     <dependencies>
         <!-- Java annotation API (optional if already available in JDK) -->
         <dependency>

@@ -43,11 +43,10 @@ public final class Template {
                 if (i >= len) throw new IllegalArgumentException("Unclosed placeholder");
                 String key = template.substring(start, i).trim();
                 tokens.add(new PlaceholderToken(key));
-                i++; // skip ')'
             } else {
                 buf.append(c);
-                i++;
             }
+            i++; // skip ')'
         }
         if (buf.length() > 0) {
             tokens.add(new TextToken(buf.toString()));
