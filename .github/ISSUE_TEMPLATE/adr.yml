@@ -1,0 +1,64 @@
+name: "Architecture Decision Record (ADR)"
+description: "Capture a key architectural decision"
+title: "ADR: <short decision summary>"
+labels: [adr, architecture]
+body:
+  - type: input
+    id: status
+    attributes:
+      label: Status
+      description: Proposed, Accepted, Deprecated, Superseded
+      placeholder: Accepted
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What’s the background and rationale for this decision?
+      placeholder: >
+        E.g., We evaluated multiple DBs. PostgreSQL was selected due to ACID compliance, familiarity, and ecosystem support.
+    validations:
+      required: true
+
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision
+      description: What was decided, and why?
+      placeholder: >
+        We will standardize on PostgreSQL 15 for all core services.
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: consequences
+    attributes:
+      label: Consequences
+      description: What are the implications, benefits, and tradeoffs?
+      placeholder: >
+        All microservices must use Postgres-compatible drivers. Adds maintenance overhead for migrations.
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered (optional)
+      description: Other options that were considered and why they weren’t chosen.
+      placeholder: |
+        - MySQL: Simpler but weaker JSON support.
+        - NoSQL: Inappropriate for structured transactional data.
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References (optional)
+      description: Link to discussions, Slack threads, pull requests, or documentation.
+      placeholder: |
+        - Discussion: #42
+        - PR: #78
+
