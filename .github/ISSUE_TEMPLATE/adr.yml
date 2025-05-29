@@ -1,7 +1,7 @@
 name: "Architecture Decision Record (ADR)"
 description: "Capture a key architectural decision"
 title: "ADR: <short decision summary>"
-labels: [adr, architecture]
+labels: [ADR]
 body:
   - type: input
     id: status
