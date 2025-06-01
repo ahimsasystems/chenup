@@ -129,8 +129,14 @@ public class EntityProcessor extends AbstractProcessor {
                         //        writer.write("    public " + returnType + " " + name + "() { return " + field + "; } ");
 
                                 var access = fieldMap.containsKey(field) ? Access.READ_WRITE : Access.READ_ONLY;
-                                var fieldModel = new FieldModel(field, returnType, access);
+
+                                var hasDefaultWriter = fieldMap.containsKey(field) && fieldMap.get(field).getHasDefaultWriter();
+                                boolean hasDefaultReader = method.getModifiers().contains(Modifier.DEFAULT);
+
+                                var fieldModel = new FieldModel(field, returnType, access, hasDefaultReader, hasDefaultWriter);
                                 fieldMap.put(field, fieldModel);
+
+
 
                             } else if (name.startsWith("set") && method.getParameters().size() == 1) {
                                 String field = decapitalize(name.substring(3));
@@ -139,7 +145,12 @@ public class EntityProcessor extends AbstractProcessor {
                         //        writer.write("    public void " + name + "(" + paramType + " " + param + ") { this." + field + " = " + param + "; } ");
 
                                 var access = fieldMap.containsKey(field) ? Access.READ_WRITE : Access.WRITE_ONLY;
-                                var fieldModel = new FieldModel(field, paramType, access);
+
+                                var hasDefaultReader = fieldMap.containsKey(field) && fieldMap.get(field).getHasDefaultReader();
+                                boolean hasDefaultWriter = method.getModifiers().contains(Modifier.DEFAULT);
+
+                                var fieldModel = new FieldModel(field, paramType, access, hasDefaultReader, hasDefaultWriter);
+
                                 fieldMap.put(field, fieldModel);
                             }
                     }
@@ -176,24 +187,24 @@ public class EntityProcessor extends AbstractProcessor {
 
     private void generateCode(EntityModel entityModel) throws IOException {
         System.err.println("Generating code for " + entityModel);
-        JavaFileObject file = processingEnv.getFiler().createSourceFile(entityModel.packageName() + "." + entityModel.name() + "Impl");
+        JavaFileObject file = processingEnv.getFiler().createSourceFile(entityModel.getPackageName() + "." + entityModel.getName() + "Impl");
 
         entityHeaderTemplate.render(Map.of(
-                "packageName", entityModel.packageName(),
-                "name", entityModel.name(),
-                "interfaceName", entityModel.name()
+                "packageName", entityModel.getPackageName(),
+                "name", entityModel.getName(),
+                "interfaceName", entityModel.getName()
         ));
 
         try (Writer writer = file.openWriter()) {
             writer.write(entityHeaderTemplate.render(Map.of(
-                    "packageName", entityModel.packageName(),
-                    "name", entityModel.name()
+                    "packageName", entityModel.getPackageName(),
+                    "name", entityModel.getName()
             )));
 
 //            writer.write("package " + entityModel.packageName() + "; ");
-//            writer.write("public class " + entityModel.name() + "Impl" + " { ");
+//            writer.write("public class " + entityModel.getName() + "Impl" + " { ");
 
-            for (FieldModel field : entityModel.fields().values()) {
+            for (FieldModel field : entityModel.getFields().values()) {
                 generateCode(field, writer);
             }
 
@@ -206,9 +217,9 @@ public class EntityProcessor extends AbstractProcessor {
 
 
         String fieldSource = fieldTemplate.render(Map.of(
-                "type", fieldModel.type(),
-                "name", fieldModel.name(),
-                "capName", capitalize(fieldModel.name())
+                "type", fieldModel.getType(),
+                "name", fieldModel.getName(),
+                "capName", capitalize(fieldModel.getName())
         ));
 
 
@@ -216,13 +227,13 @@ public class EntityProcessor extends AbstractProcessor {
 
         writer.write(fieldSource);
 
-//        writer.write("    private " + fieldModel.type() + " " + fieldModel.name() + "; ");
+//        writer.write("    private " + fieldModel.type() + " " + fieldModel.getName() + "; ");
 //        if (fieldModel.access() == Access.READ_WRITE || fieldModel.access() == Access.READ_ONLY) {
-//            writer.write("    public " + fieldModel.type() + " get" + capitalize(fieldModel.name()) + "() { return " + fieldModel.name() + "; } ");
+//            writer.write("    public " + fieldModel.type() + " get" + capitalize(fieldModel.getName()) + "() { return " + fieldModel.getName() + "; } ");
 //        }
 //
 //        if (fieldModel.access() == Access.READ_WRITE || fieldModel.access() == Access.WRITE_ONLY) {
-//            writer.write("    public void set" + capitalize(fieldModel.name()) + "(" + fieldModel.type() + " " + fieldModel.name() + ") { this." + fieldModel.name() + " = " + fieldModel.name() + "; } ");
+//            writer.write("    public void set" + capitalize(fieldModel.getName()) + "(" + fieldModel.type() + " " + fieldModel.getName() + ") { this." + fieldModel.getName() + " = " + fieldModel.getName() + "; } ");
 //        }
     }
 

@@ -7,7 +7,24 @@
 * Relationships
 
 * PersistenceManager
+  * Currently rather than store the persistence state in the entity itself, the PersistenceManage stores each persistence state in a separate map, indexed by the entity ID. This allows for more efficient access to the persistence state and avoids the need to store it in the entity itself.
+  * The PersistenceManager is not intended to be used directly by application code, but rather through the PersistenceCapable interface.
+
 * PersistenceCapable
   * The PersistenceCapable interface is used to access the persistence machinery, such as the entity ID and the entity state (dirty, etc.). This allows application code to access these details without needing to recast the object to a specific implementation class.
   * The PersistenceManager is responsible for managing the persistence of entities and relationships, including creating, updating, and deleting them. It also provides methods for querying the database and retrieving entities and relationships.
   * The PersistenceManager is not intended to be used directly by application code, but rather through the PersistenceCapable interface.
+  * @Entity interfaces do not need to extend PersistenceCapable, but they can if they want to access the persistence machinery directly. This may be a bug and not a feature, but it is useful for debugging and testing purposes.
+
+```mermaid
+
+  classDiagram
+  class FieldModel {
+  +String name
+  +String type
+  +Access access
+  +boolean hasDefaultReader
+  +boolean hasDefaultWriter
+  }
+
+```

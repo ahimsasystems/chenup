@@ -1,5 +1,6 @@
 # chenup
 
+## Brief Overview
 chenup is a new Java persistence library that addresses many limitations of existing ORM tools and libraries by returning to the E-R model as originally defined by Peter Chen in his classic paper from 1976, "The Entity-Relationship Model: Toward a Unified View of Data". In addition, it takes advantage of contemporary Java features to make it easier to use, automatically compatible with IDEs, and more adherent to the E-R model.
 
 From a conceptual modeling perspective, chenup extends the conceptual model of JPA to allow for relationships to be first-class citizens, on an equal footing with entities, and formalizes the representation of attribute types as value types, including the standard built-in types like the numeric types, String, Date, etc., which are mapped very much like JPA into the database. However, it also allows for the use of record types as value types, which map very naturally to user-defined types in, for example, Postgres. References to other entities are not allowed in entities, but instead are represented as relationships. Like entities, relationships have their own attributes and lifecycle. The first release of chunup will support only binary relationships, but the intent is to support n-ary relationships in the future. 
@@ -25,3 +26,67 @@ Future capabilities will include the following:
 * ...
 
 A non-goal was direct compatibility with any existing ORM tool or library, or any standard such as JPA. The annotations used in some cases match the names of annotations from JPA or JDO, but the semantics are generally different.
+
+## Usage
+
+If you are generating the code, you must include the following:
+
+In your pom.xml:
+  
+```
+<repositories>
+<repository>
+<id>github</id>
+<url>https://maven.pkg.github.com/stephenwstrom/chenup</url>
+<releases><enabled>true</enabled></releases>
+<snapshots><enabled>true</enabled></snapshots>
+</repository>
+</repositories>
+
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/stephenwstrom/chenup</url>
+        </repository>
+        <snapshotRepository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/stephenwstrom/chenup</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+```
+
+And configuration to the compiler plugin:
+
+```
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${compiler-plugin.version}</version>
+                <configuration>
+                    <parameters>true</parameters>
+                    <release>24</release>
+                    <generatedSourcesDirectory>target/generated-sources/annotations</generatedSourcesDirectory>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>com.ahimsasystems</groupId>
+                            <artifactId>chenup</artifactId>
+                            <version>1.0-SNAPSHOT</version>
+                        </path>
+                    </annotationProcessorPaths>
+
+                </configuration>
+            </plugin>
+            
+            
+
+
+```
+
+And in src/main/resources/META-INF.services, create a file named `javax.annotation.processing.Processor` with the following content:
+
+```
+com.ahimsasystems.chenup.processor.EntityProcessor
+```
+
+*   
