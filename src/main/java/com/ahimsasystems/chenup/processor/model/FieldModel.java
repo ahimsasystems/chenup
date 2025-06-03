@@ -61,7 +61,7 @@ public class FieldModel {
                 "name='" + name + '\'' +
                 ", type='" + type + '\'' +
                 ", access=" + access +
-                ", hasDefaultReader=" + hasDefaultReader +
+                ", getHasDefaultReader=" + hasDefaultReader +
                 ", hasDefaultWriter=" + hasDefaultWriter +
                 '}';
     }
