@@ -4,6 +4,10 @@ import java.util.Map;
 
 public class RelationshipModel extends MutableElementModel{
 
+    public Map<String, EntityModel> getEntities() {
+        return entities;
+    }
+
     private final Map<String, EntityModel> entities = new java.util.HashMap<>();
 
 
@@ -15,5 +19,13 @@ public class RelationshipModel extends MutableElementModel{
         this.entities.putAll(entities);
     }
 
-
+    @Override
+    public String toString() {
+        return "RelationshipModel{" +
+                "packageName='" + getPackageName() + '\'' +
+                ", name='" + getName() + '\'' +
+                "fields=" + getFields() +
+                "entities=" + entities +
+                '}';
+    }
 }

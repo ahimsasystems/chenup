@@ -38,4 +38,17 @@ public class MutableElementModel {
     public void setFields(Map<String, FieldModel> fields) {
         this.fields = fields;
     }
+
+    public String getFullName() {
+        return packageName + "." + name;
+    }
+
+    @Override
+    public String toString() {
+        return "MutableElementModel{" +
+                "packageName='" + packageName + '\'' +
+                ", name='" + name + '\'' +
+                ", fields=" + fields +
+                '}';
+    }
 }

@@ -2,10 +2,7 @@ package com.ahimsasystems.chenup.processor;
 
 import com.ahimsasystems.chenup.annotations.Entity;
 import com.ahimsasystems.chenup.annotations.Relationship;
-import com.ahimsasystems.chenup.processor.model.Access;
-import com.ahimsasystems.chenup.processor.model.EntityModel;
-import com.ahimsasystems.chenup.processor.model.FieldModel;
-import com.ahimsasystems.chenup.processor.template.Template;
+import com.ahimsasystems.chenup.processor.model.*;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -13,12 +10,13 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
-import javax.tools.JavaFileObject;
-import java.io.IOException;
-import java.io.Writer;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static com.ahimsasystems.chenup.processor.JavaCodeGenerator.decapitalize;
 
 
 @SupportedAnnotationTypes({"com.ahimsasystems.chenup.annotations.Entity", "com.ahimsasystems.chenup.annotations.Relationship"})
@@ -29,7 +27,11 @@ public class EntityProcessor extends AbstractProcessor {
 
     private final Set<EntityModel> entityModels = new java.util.HashSet<>();
 
-
+    // Index for quick lookup by name. will be populated after processing all entities.
+    private Map<String, EntityModel> entityTypeNameIndex = entityModels.stream()
+            .collect(Collectors.toMap(EntityModel::getName, Function.identity()));
+    private final Set<RelationshipModel> relationshipModels = new java.util.HashSet<>();
+    private Types typeUtils;
 
 
     @Override
@@ -43,12 +45,7 @@ public class EntityProcessor extends AbstractProcessor {
 
 
 
-//        fieldTemplate = new Template();
-//        fieldTemplate.compile(fieldTemplateString);
-//        entityHeaderTemplate = new Template();
-//        entityHeaderTemplate.compile(entityHeaderTemplateString);
-//        entityFooterTemplate = new Template();
-//        entityFooterTemplate.compile(entityFooterTemplateString);
+
 
     }
 
@@ -57,88 +54,146 @@ public class EntityProcessor extends AbstractProcessor {
 
         if (roundEnv.processingOver()) {
             try {
-                generateCode(entityModels);
+                // generateCode(entityModels, processingEnv);
+                JavaCodeGenerator javaCodeGenerator = new JavaCodeGenerator();
+                javaCodeGenerator.generateEntityCode(entityModels, processingEnv);
+                javaCodeGenerator.generateRelationshipCode(relationshipModels, processingEnv);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
             return true;
         }
 
-        // This should move after processing the Entities since Relationships must refer to Entities but not vice versa.
-        for (Element e : roundEnv.getElementsAnnotatedWith(Relationship.class)) {
-            System.err.println("Found relationship: " + e);
-        }
+
 
         for (Element e : roundEnv.getElementsAnnotatedWith(Entity.class)) {
-            if (e.getKind() != ElementKind.INTERFACE) {
-                continue;
-            }
+            Class x = Entity.class;
 
-            TypeElement interfaceElement = (TypeElement) e;
-            String packageName = elementUtils.getPackageOf(interfaceElement).getQualifiedName().toString();
-            String interfaceName = interfaceElement.getSimpleName().toString();
-            String className = interfaceName + "Impl";
+            buildModel(e, ModelType.ENTITY);
 
 
-            try {
+        }
+
+        entityTypeNameIndex = entityModels.stream().collect(Collectors.toMap(EntityModel::getFullName, Function.identity()));
 
 
-                var fieldMap = new java.util.HashMap<String, FieldModel>();
+        System.err.println("Entity Type Name Index: " + entityTypeNameIndex);
 
-                Set<ExecutableElement> allMethods = new LinkedHashSet<>();
-                collectAllInterfaceMethods(interfaceElement, elementUtils, typeUtils, allMethods);
-
-
-                for (ExecutableElement method : allMethods) {
-
-
-                    String name = method.getSimpleName().toString();
-                    String returnType = method.getReturnType().toString();
-
-                    if (name.startsWith("get") && method.getParameters().isEmpty()) {
-                        String field = decapitalize(name.substring(3));
-
-
-                        var access = fieldMap.containsKey(field) ? Access.READ_WRITE : Access.READ_ONLY;
-
-                        var hasDefaultWriter = fieldMap.containsKey(field) && fieldMap.get(field).getHasDefaultWriter();
-                        boolean hasDefaultReader = method.getModifiers().contains(Modifier.DEFAULT);
-
-                        var fieldModel = new FieldModel(field, returnType, access, hasDefaultReader, hasDefaultWriter);
-                        fieldMap.put(field, fieldModel);
-
-
-                    } else if (name.startsWith("set") && method.getParameters().size() == 1) {
-                        String field = decapitalize(name.substring(3));
-                        String paramType = method.getParameters().get(0).asType().toString();
-                        String param = method.getParameters().get(0).getSimpleName().toString();
-
-
-                        var access = fieldMap.containsKey(field) ? Access.READ_WRITE : Access.WRITE_ONLY;
-
-                        var hasDefaultReader = fieldMap.containsKey(field) && fieldMap.get(field).getHasDefaultReader();
-                        boolean hasDefaultWriter = method.getModifiers().contains(Modifier.DEFAULT);
-
-                        var fieldModel = new FieldModel(field, paramType, access, hasDefaultReader, hasDefaultWriter);
-
-                        fieldMap.put(field, fieldModel);
-                    }
-                }
-
-
-                var entityModel = new EntityModel(packageName, interfaceName, fieldMap);
-                entityModels.add(entityModel);
-
-                System.err.println(entityModel);
-
-
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+        for (Element e : roundEnv.getElementsAnnotatedWith(Relationship.class)) {
+            Class x = Relationship.class;
+            buildModel(e, ModelType.RELATIONSHIP);
         }
         return true;
     }
 
+    private void buildModel(Element e, ModelType modelType) {
+        if (e.getKind() != ElementKind.INTERFACE) {
+            return;
+        }
+
+
+        TypeElement interfaceElement = (TypeElement) e;
+        String packageName = elementUtils.getPackageOf(interfaceElement).getQualifiedName().toString();
+        String interfaceName = interfaceElement.getSimpleName().toString();
+        String className = interfaceName + "Impl";
+
+
+        try {
+
+
+            var fieldMap = new java.util.HashMap<String, FieldModel>();
+            var relationshipEntities = new java.util.HashMap<String, EntityModel>();
+
+            Set<ExecutableElement> allMethods = new LinkedHashSet<>();
+            collectAllInterfaceMethods(interfaceElement, elementUtils, typeUtils, allMethods);
+
+
+            for (ExecutableElement method : allMethods) {
+
+
+                String name = method.getSimpleName().toString();
+                String returnType = method.getReturnType().toString();
+
+                if (name.startsWith("get") && method.getParameters().isEmpty()) {
+
+                    String memberName = decapitalize(name.substring(3));
+
+                    // Is this an entity?
+                    System.err.println("*** " + returnType + " ***");
+                    if (entityTypeNameIndex.containsKey(returnType)) {
+                        // If the field is an entity, we can skip it for now.
+                        System.err.println("Found an entity: " + returnType);
+                        continue;
+                    }
+
+
+
+                    var access = fieldMap.containsKey(memberName) ? Access.READ_WRITE : Access.READ_ONLY;
+
+                    var hasDefaultWriter = fieldMap.containsKey(memberName) && fieldMap.get(memberName).getHasDefaultWriter();
+                    boolean hasDefaultReader = method.getModifiers().contains(Modifier.DEFAULT);
+
+                    var fieldModel = new FieldModel(memberName, returnType, access, hasDefaultReader, hasDefaultWriter);
+                    fieldMap.put(memberName, fieldModel);
+
+
+                } else if (name.startsWith("set") && method.getParameters().size() == 1) {
+                    String field = decapitalize(name.substring(3));
+                    String paramType = method.getParameters().get(0).asType().toString();
+                    String param = method.getParameters().get(0).getSimpleName().toString();
+
+                    // Is this an entity?
+                    System.err.println("*** " + returnType + " ***");
+                    if (entityTypeNameIndex.containsKey(paramType)) {
+                        EntityModel entityModel = entityTypeNameIndex.get(paramType);
+                        // If the field is an entity, we can skip it for now.
+                        System.err.println("Found an entity: " + paramType);
+                        relationshipEntities.put(field, entityModel);
+                        ;
+                    }
+
+
+
+                    var access = fieldMap.containsKey(field) ? Access.READ_WRITE : Access.WRITE_ONLY;
+
+                    var hasDefaultReader = fieldMap.containsKey(field) && fieldMap.get(field).getHasDefaultReader();
+                    boolean hasDefaultWriter = method.getModifiers().contains(Modifier.DEFAULT);
+
+                    var fieldModel = new FieldModel(field, paramType, access, hasDefaultReader, hasDefaultWriter);
+
+                    fieldMap.put(field, fieldModel);
+                }
+            }
+
+
+            if (modelType == ModelType.ENTITY) {
+                    var entityModel = new EntityModel(packageName, interfaceName, fieldMap);
+                    entityModels.add(entityModel);
+
+            } else if (modelType == ModelType.RELATIONSHIP) {
+                    System.err.println("Processing Relationship: " + interfaceName + " in package: " + packageName);
+                    var relationshipModel = new RelationshipModel(
+                            packageName,
+                            interfaceName,
+                            fieldMap,
+                            relationshipEntities
+                    );
+                    relationshipModels.add(relationshipModel);
+
+                    System.err.println("Relationship Model: " + relationshipModel);
+                }
+            else {
+                System.err.println("Unknown annotation type: " + modelType);
+            }
+            
+
+
+
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
 
 
     private void collectAllInterfaceMethods(TypeElement interfaceElement, Elements elementUtils, Types typeUtils, Set<ExecutableElement> methods) {
@@ -159,101 +214,5 @@ public class EntityProcessor extends AbstractProcessor {
     }
 
 
-
-    // Moving everything related to code generation below here so it can be pulled into a separate class.
-
-    private void generateCode(Set<EntityModel> entityModels) throws IOException {
-
-
-        for (EntityModel entityModel : entityModels) {
-
-            generateCode(entityModel);
-
-
-        }
-    }
-
-    private void generateCode(EntityModel entityModel) throws IOException {
-        JavaFileObject file = processingEnv.getFiler().createSourceFile(entityModel.getPackageName() + "." + entityModel.getName() + "Impl");
-
-
-        try (Writer writer = file.openWriter()) {
-            writer.write(entityHeaderTemplate.render(Map.of(
-                    "packageName", entityModel.getPackageName(),
-                    "name", entityModel.getName()
-            )));
-
-
-            for (FieldModel field : entityModel.getFields().values()) {
-                generateCode(field, writer);
-            }
-
-            writer.write("} ");
-        }
-    }
-
-
-    private void generateCode(FieldModel fieldModel, Writer writer) throws IOException {
-
-
-        String fieldSource = fieldTemplate.render(Map.of(
-                "type", fieldModel.getType(),
-                "name", fieldModel.getName(),
-                "capName", capitalize(fieldModel.getName())
-        ));
-
-
-
-        writer.write(fieldSource);
-
-
-    }
-
-    private String decapitalize(String s) {
-        return Character.toLowerCase(s.charAt(0)) + s.substring(1);
-    }
-
-    private String capitalize(String s) {
-        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
-    }
-
-    private Template fieldTemplate;
-    private Template entityHeaderTemplate;
-    private Template entityFooterTemplate;
-    private Types typeUtils;
-
-    String fieldTemplateString = """
-                
-                private $(type) $(name);
-                
-                public $(type) get$(capName)() {
-                    return $(name);
-                }
-                
-                public void set$(capName)($(type) $(name)) {
-                    this.$(name) = $(name);
-                }
-                """;
-
-
-    String entityHeaderTemplateString = """
-                package $(packageName);
-                
-                public class $(name)Impl extends com.ahimsasystems.chenup.core.AbstractPersistenceCapable implements $(name)  {
-                """;
-
-    String entityFooterTemplateString = """
-                }
-                """;
-
-    {
-        fieldTemplate = new Template();
-        fieldTemplate.compile(fieldTemplateString);
-        entityHeaderTemplate = new Template();
-        entityHeaderTemplate.compile(entityHeaderTemplateString);
-        entityFooterTemplate = new Template();
-        entityFooterTemplate.compile(entityFooterTemplateString);
-
-    }
 
 }

@@ -8,4 +8,12 @@ public class EntityModel extends MutableElementModel {
         super(packageName, name, fields);
     }
 
+    @Override
+    public String toString() {
+        return "EntityModel{" +
+                "packageName='" + getPackageName() + '\'' +
+                ", name='" + getName() + '\'' +
+                ", fields=" + getFields() +
+                '}';
+    }
 }
