@@ -150,4 +150,53 @@ public class JavaCodeGenerator {
         entityFooterTemplate.compile(entityFooterTemplateString);
 
     }
+
+    public void generatePersistenceInitializer(Set<EntityModel> entityModels, Set<RelationshipModel> relationshipModels,ProcessingEnvironment processingEnv) throws IOException {
+
+        // Hard coded for now, needs to be templatized.
+
+
+        JavaFileObject file = processingEnv.getFiler().createSourceFile("com.example.PersistenceInitializer");
+        try (Writer writer = file.openWriter()) {
+            writer.write("""
+                  package com.example;
+
+// © 2025 Stephen W. Strom
+// Licensed under the MIT License. See LICENSE file in the project root for details.
+
+import com.ahimsasystems.chenup.core.PersistenceManager;
+import jakarta.enterprise.context.ApplicationScoped;
+
+import java.util.function.Supplier;
+
+                // This class will be generated so that its dependence on generated code wiill not cause compile errors.
+@ApplicationScoped
+public class PersistenceInitializer implements com.ahimsasystems.chenup.core.PersistenceInitializer {
+    public void registerAll(PersistenceManager pm) {
+
+            // Register all classes that need to be persisted.
+            // For example:
+            pm.registerType(Person.class, PersonImpl::new);
+            pm.registerMapper(Person.class, PersonMapper::new);
+
+            var personMapper = new PersonMapper();
+
+            // Add more registrations as needed.
+            // pm.register(AnotherClass.class, AnotherClass::new);
+
+   // etc.
+
+    }
+}
+
+
+
+
+
+
+
+                            """
+            );
+    }
+    }
 }

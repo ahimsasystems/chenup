@@ -1,12 +1,15 @@
 package com.ahimsasystems.chenup.postgresdb;
 
+import com.ahimsasystems.chenup.core.Mapper;
 import com.ahimsasystems.chenup.core.PersistenceCapable;
 import com.ahimsasystems.chenup.core.PersistenceManager;
 import com.ahimsasystems.chenup.core.UUIDv7Generator;
 import org.jetbrains.annotations.NotNull;
 
 import javax.sql.DataSource;
+import java.sql.Connection;
 import java.util.*;
+import java.util.function.Supplier;
 
 // © 2025 Stephen W. Strom
 // Licensed under the MIT License. See LICENSE file in the project root for details.
@@ -38,11 +41,23 @@ import java.util.*;
  */
 public class PostgresPersistenceManager implements PersistenceManager {
 
+    private final Map<Class , Supplier> mapperRegistry = new HashMap<>();
+    private final Map<Class, Supplier> typeRegistry = new HashMap<>();
+
     public Map<UUID, PersistenceCapable> getPersistentNew() {
         return persistentNew;
     }
 
+    public void registerMapper(Class theClass, Supplier mapperConstructor) {
+        mapperRegistry.put(theClass, mapperConstructor);
+    }
 
+    public void registerType(Class theClass, Supplier constructor) {
+        typeRegistry.put(theClass, constructor);
+
+        System.err.println("Registered class: " + theClass.getName() + " with constructor: " + constructor.getClass().getName());
+
+    }
 
     public Map<UUID, PersistenceCapable> getPersistentAll() {
         return persistentAll;
@@ -64,8 +79,35 @@ public class PostgresPersistenceManager implements PersistenceManager {
 
     private DataSource dataSource;
 
+    private Connection connection;
+
+    public void setConnection(Connection connection) {
+        this.connection = connection;
+    }
+
+    public Connection getConnection() {
+        return connection;
+    }
+
+    public Object create(@NotNull Class interfaceClass) {
+
+        var constructor = typeRegistry.get(interfaceClass);
+        if (constructor == null) {
+            throw new IllegalArgumentException("No constructor registered for class: " + interfaceClass.getName());
+        }
+        var instance = constructor.get();
+        if (!(instance instanceof PersistenceCapable)) {
+            throw new IllegalArgumentException("The class " + interfaceClass.getName() + " does not implement PersistenceCapable.");
+        }
+        return instance;
+    }
 
 
+
+    // This is being deprecated because objects can only be created through the create method, unlike JPA or JDO were an existing object can be persisted, created with Java new.
+    // This is necessary because the implementation of the Entities and Relationships is generated code, and only the user-defined interfaces are available to the user.
+    // Then the persistence manager will be able to track the status of the object and can determine whether to insert or update it based on its state.
+    @Deprecated
     void persist(@NotNull PersistenceCapable object) {
 
 
@@ -87,13 +129,32 @@ public class PostgresPersistenceManager implements PersistenceManager {
 
     }
 
-    PersistenceCapable retrieve(UUID id) {
+    public PersistenceCapable read(UUID id, Class interfaceClass) {
 
         if (persistentAll.containsKey(id)) {
             return persistentAll.get(id);
         }
+        // ... check the database for the object with this ID
+        // If not found, return null or throw an exception based on your design choice.
+        // For now, assume it is there and call the mapper to read it.
+        // Got to figure out the class of the ID, which is a UUID, so we can get the mapper for it.
+        // I guess we need another registry for the types of the objects by UUID.
+        // For now, pass it?
+        Supplier<?> mapperConstructor = mapperRegistry.get(interfaceClass);
+        if (mapperConstructor != null) {
+            PostgresAbstractMapper mapper = (PostgresAbstractMapper) mapperConstructor.get();
+
+            mapper.setPersistenceManager(this);
+            var result = (PersistenceCapable) mapper.read(id);
+            persistentAll.put(id, result);
+            return result;
+        }
         return null;
-        // Logic to retrieve from the database can be added here.
+    }
+
+    @Override
+    public Supplier<?> getMapper(Class theClass) {
+        return mapperRegistry.get(theClass);
     }
 
     public void dirty(@NotNull PersistenceCapable object) {

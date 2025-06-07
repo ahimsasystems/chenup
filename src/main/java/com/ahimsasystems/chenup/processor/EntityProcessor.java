@@ -20,7 +20,7 @@ import static com.ahimsasystems.chenup.processor.JavaCodeGenerator.decapitalize;
 
 
 @SupportedAnnotationTypes({"com.ahimsasystems.chenup.annotations.Entity", "com.ahimsasystems.chenup.annotations.Relationship"})
-@SupportedSourceVersion(SourceVersion.RELEASE_24)
+@SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class EntityProcessor extends AbstractProcessor {
 
     private Elements elementUtils;
@@ -58,6 +58,7 @@ public class EntityProcessor extends AbstractProcessor {
                 JavaCodeGenerator javaCodeGenerator = new JavaCodeGenerator();
                 javaCodeGenerator.generateEntityCode(entityModels, processingEnv);
                 javaCodeGenerator.generateRelationshipCode(relationshipModels, processingEnv);
+                javaCodeGenerator.generatePersistenceInitializer(entityModels, relationshipModels, processingEnv);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
