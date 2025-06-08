@@ -20,7 +20,7 @@ One goal of chenup is to be fully reversible, that is, a database designed with 
 * The intent is for chenup to be usable in any modern Java application, including Jakarta EE, Spring, and microprofile. However, there is absolutely no intent to integrate it with of the existing ORM management tools.
 * Unlike permazen, no assumption is made that the database is accessed only from Java.
 * There are no nulls. In relationships, nulls are not needed because it is simply that the row is deleted. For conveninece functions, like getEmployer(), at first this will always be expected to return a collection, which may be empty. We will see how well this wears in practice. The intent is to avoid nulls as much as possible, but this may be too restrictive in some cases.
-* The IDs of an Entity or a Relationship is not hidden. Surrogate keys can be directly accessed by the user. For the purposes of the user, this ID should be viewed as an opaque string. This accomplishes several things:
+* The ID of an Entity or a Relationship is not hidden. Surrogate keys can be directly accessed by the user. For the purposes of the user, this ID should be viewed as an opaque string. This accomplishes several things:
   * A user can use whatever means necessary to ascertain the correct ID, and then use that ID.
   * Different systems may chose to use the same ID if it is meant to represent the same real-world object.
   * There is no longer a need to find a query for entry into a system to get back to an Entity or Relationships that was previously discovered.
