@@ -58,6 +58,7 @@ public class EntityProcessor extends AbstractProcessor {
                 JavaCodeGenerator javaCodeGenerator = new JavaCodeGenerator();
                 javaCodeGenerator.generateEntityCode(entityModels, processingEnv);
                 javaCodeGenerator.generateRelationshipCode(relationshipModels, processingEnv);
+
                 javaCodeGenerator.generatePersistenceInitializer(entityModels, relationshipModels, processingEnv);
             } catch (Exception ex) {
                 ex.printStackTrace();

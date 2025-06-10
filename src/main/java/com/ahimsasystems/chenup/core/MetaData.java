@@ -5,6 +5,11 @@ import java.util.UUID;
 
 // © 2025 Stephen W. Strom
 // Licensed under the MIT License. See LICENSE file in the project root for details.
+
+//**
+/* This class is primarily a design placeholder at this point, and for release 0.1, may not be directly populated since it can be easily updated as needed through direct SQL queries. Also for the initial release, a great deal of this data will be set automatically by the system, such as creation and last update times. And currently all this metadata is stored in the Thing table.
+
+*/
 public class MetaData {
 
     private UUID id;
@@ -61,4 +66,16 @@ public class MetaData {
         this.version++;
         this.lastUpdateDateTime = Instant.now(); // Update last update time when version is incremented
     }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
+    }
+
+    private boolean deleted = false;
+
+
 }

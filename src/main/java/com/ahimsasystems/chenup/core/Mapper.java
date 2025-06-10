@@ -15,23 +15,22 @@ import java.util.UUID;
  */
 public interface Mapper {
 
-    /** Right now this guy is checking the persistent store to see if the object already exists in the PersistenceManage.
-     * But i believe the PersistenceManager should be able to check this itself before calling retrieve.
+    /** This always returns a new instance of the object and does not check to see if it has already been read and cached in the PersistenceManager.
+     * It is the job of the PersistenceManager to cache objects and return them if they have already been read, and otherwise to call this method.
      */
-    public Object read(@NotNull UUID id);
+    public PersistenceCapable read(@NotNull UUID id);
 
 
     /** insert and update make assumptions that need to be checked before they are called.
      * Insert assumes that the object is not already in the persistent store and will do a straight insert
      * without checking for existence, which could lead to a duplicate key error.
      * Update assumes that the object is already in the persistent store and will do an update without checking for existence, which could lead to an error if the object does not exist.
-     * These are implemented this way so the caller can decide how to handle these cases andto avoid unnecessary database queries, for instance, if the PersistenceManager already knows that the object is new or existing.
+     * These are implemented this way so the caller can decide how to handle these cases and to avoid unnecessary database queries, for instance, if the PersistenceManager already knows that the object is new or existing.
      * @param object
      * @throws SQLException
      */
-    public void insert(@NotNull Object object) throws SQLException;
+    public void upsert(@NotNull PersistenceCapable object) throws SQLException;
 
-    public void update(@NotNull Object object) throws SQLException;
 
     // This shouldn't be necessary at this level because it is implementation-specific.
     // public void setConnection(@NotNull java.sql.Connection connection);

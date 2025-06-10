@@ -10,6 +10,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.util.*;
 import java.util.function.Supplier;
+import com.ahimsasystems.chenup.postgresdb.PostgresAbstractMapper;
 
 // © 2025 Stephen W. Strom
 // Licensed under the MIT License. See LICENSE file in the project root for details.
@@ -104,35 +105,15 @@ public class PostgresPersistenceManager implements PersistenceManager {
 
 
 
-    // This is being deprecated because objects can only be created through the create method, unlike JPA or JDO were an existing object can be persisted, created with Java new.
-    // This is necessary because the implementation of the Entities and Relationships is generated code, and only the user-defined interfaces are available to the user.
-    // Then the persistence manager will be able to track the status of the object and can determine whether to insert or update it based on its state.
-    @Deprecated
-    void persist(@NotNull PersistenceCapable object) {
 
 
-        UUID id = object.getId();
-        if (id == null) {
-           object.setId(UUIDv7Generator.generateUUIDv7());
-        }
-
-        if (!persistentAll.containsKey(id)) {
-            persistentNew.put(id, object);
-            persistentAll.put(id, object);
-
-        }
-
-
-
-
-
-
-    }
-
-    public PersistenceCapable read(UUID id, Class interfaceClass) {
+    /**
+     * Note that this uses Bloch's (from 3rd ed.) Item 33: Consider typesafe heterogeneous containers.
+     */
+    public <T extends PersistenceCapable> T read(UUID id, Class interfaceClass) {
 
         if (persistentAll.containsKey(id)) {
-            return persistentAll.get(id);
+            return (T) persistentAll.get(id);
         }
         // ... check the database for the object with this ID
         // If not found, return null or throw an exception based on your design choice.
@@ -145,8 +126,8 @@ public class PostgresPersistenceManager implements PersistenceManager {
             PostgresAbstractMapper mapper = (PostgresAbstractMapper) mapperConstructor.get();
 
             mapper.setPersistenceManager(this);
-            var result = (PersistenceCapable) mapper.read(id);
-            persistentAll.put(id, result);
+            var result = (T) mapper.read(id);
+            persistentAll.put(id, (PersistenceCapable) result);
             return result;
         }
         return null;

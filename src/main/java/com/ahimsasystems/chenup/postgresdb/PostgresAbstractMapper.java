@@ -1,8 +1,10 @@
 package com.ahimsasystems.chenup.postgresdb;
 
 import com.ahimsasystems.chenup.core.Mapper;
+import com.ahimsasystems.chenup.core.PersistenceCapable;
 import com.ahimsasystems.chenup.core.PersistenceManager;
-import org.jetbrains.annotations.NotNull;
+import com.ahimsasystems.chenup.core.exceptions.DeletedObjectAccessException;
+import com.ahimsasystems.chenup.postgresdb.PostgresPersistenceManager;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -39,17 +41,89 @@ public abstract class PostgresAbstractMapper implements Mapper {
         return this.getPersistenceManager().getConnection();
     }
 
+    public PersistenceCapable read(UUID id) {
+
+
+
+
+        String sql = getReadSql();  // Use the method to get the SQL query
+        PersistenceCapable result;
+
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+
+
+            stmt.setObject(1, id);  // Works because PostgreSQL JDBC supports UUID
+
+
+            try (ResultSet rs = stmt.executeQuery()) {
+
+                result = (PersistenceCapable) getRecord(rs);
 
 
 
 
 
+            }
 
 
 
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
 
+        // get desired metadata for this id
+        // At this point we are only checking if the record is marked as deleted.
+        try (PreparedStatement stmt = getConnection().prepareStatement("SELECT DELETED FROM THING WHERE id = ?")) {
+            stmt.setObject(1, id);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
 
+                boolean deleted = rs.getBoolean("DELETED");
+                if (deleted) {
+                    // If the record is marked as deleted, we should not return it
+                    throw new DeletedObjectAccessException(id);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
 
+        return result;
+
+    }
+
+    public void upsert(PersistenceCapable object) {
+        String sql = upsertSql();  // Use the method to get the SQL query
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+
+            setRecord(stmt, object);
+
+            stmt.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** Delete can be done in the AbstractMapper since deleting from the THING table should enduce a cascade delete in the related tables, and there is no individual logic needed for delete like there is for upsert and read.
+    */
+    public void delete(PersistenceCapable object) {
+        String sql = "DELETE FROM THING WHERE id = ?";
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+            stmt.setObject(1, object.getId());
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected abstract String upsertSql();
+
+    protected abstract void setRecord(PreparedStatement stmt, PersistenceCapable object);
+
+    protected abstract String getReadSql();
+
+    protected abstract Object getRecord(ResultSet rs);
 
 
 }

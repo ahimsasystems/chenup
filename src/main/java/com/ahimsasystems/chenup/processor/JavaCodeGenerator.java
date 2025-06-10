@@ -178,8 +178,13 @@ public class PersistenceInitializer implements com.ahimsasystems.chenup.core.Per
             // For example:
             pm.registerType(Person.class, PersonImpl::new);
             pm.registerMapper(Person.class, PersonMapper::new);
+            
+            pm.registerType(Organization.class, OrganizationImpl::new);
+            pm.registerMapper(Organization.class, OrganizationMapper::new);
+            
+            pm.registerType(Employment.class, EmploymentImpl::new);
+            pm.registerMapper(Employment.class, EmploymentMapper::new);
 
-            var personMapper = new PersonMapper();
 
             // Add more registrations as needed.
             // pm.register(AnotherClass.class, AnotherClass::new);
