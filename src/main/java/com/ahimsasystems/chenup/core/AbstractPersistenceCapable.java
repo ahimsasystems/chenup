@@ -2,15 +2,31 @@ package com.ahimsasystems.chenup.core;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.UUID;
 
 // © 2025 Stephen W. Strom
 // Licensed under the MIT License. See LICENSE file in the project root for details.
 public abstract class AbstractPersistenceCapable implements PersistenceCapable {
 
+    // TODO: This probably should be explicitly set instead of defaulting to a new UUID.
     private UUID id = UUIDv7Generator.generateUUIDv7(); // Default to a new UUID if not set
 
+    // Use a default clock for timestamps, can be overridden if needed
+    private Clock clock = Clock.systemUTC();
 
+    public Clock getClock() {
+        return clock;
+    }
+
+    public void setClock(Clock clock) {
+        this.clock = clock;
+    }
+
+    public Instant getCurrentTime() {
+        return clock.instant();
+    }
 
     public UUID getId() {
         return id;
@@ -29,22 +45,24 @@ public abstract class AbstractPersistenceCapable implements PersistenceCapable {
         }
         return metaData;
     }
+// This is now all in the persistence manager.
+//    public void dirty() {
+//
+//        if (persistenceManager != null) {
+//            persistenceManager.dirty(this);
+//            metaData.incrementVersion();
+//        }
+//    }
 
-    public void dirty() {
-
-        if (persistenceManager != null) {
-            persistenceManager.dirty(this);
-            metaData.incrementVersion();
-        }
-    }
-
-        PersistenceManager persistenceManager;
-        public void setPersistenceManager(PersistenceManager persistenceManager) {
-            this.persistenceManager = persistenceManager;
-        }
-    public PersistenceManager getPersistenceManager() {
-        return persistenceManager;
-    }
+    // Persistence manager knows about the persistence capable objects, not vice versa.
+    // This keeps the persistence capable objects very simple and focused on their own data and behavior, without needing to know about the persistence layer.
+//        PersistenceManager persistenceManager;
+//        public void setPersistenceManager(PersistenceManager persistenceManager) {
+//            this.persistenceManager = persistenceManager;
+//        }
+//    public PersistenceManager getPersistenceManager() {
+//        return persistenceManager;
+//    }
 
     // Additional common methods can be added here if needed.
 }

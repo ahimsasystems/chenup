@@ -2,6 +2,7 @@ package com.ahimsasystems.chenup.core;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.UUID;
 
@@ -18,7 +19,7 @@ public interface Mapper {
     /** This always returns a new instance of the object and does not check to see if it has already been read and cached in the PersistenceManager.
      * It is the job of the PersistenceManager to cache objects and return them if they have already been read, and otherwise to call this method.
      */
-    public PersistenceCapable read(@NotNull UUID id);
+    public PersistenceCapable read(@NotNull UUID id, Connection conn);
 
 
     /** insert and update make assumptions that need to be checked before they are called.
@@ -29,7 +30,7 @@ public interface Mapper {
      * @param object
      * @throws SQLException
      */
-    public void upsert(@NotNull PersistenceCapable object) throws SQLException;
+    public void upsert(@NotNull PersistenceCapable object, Connection connection) throws SQLException;
 
 
     // This shouldn't be necessary at this level because it is implementation-specific.

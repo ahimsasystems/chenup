@@ -55,14 +55,27 @@ public class FieldModel {
         this.hasDefaultWriter = hasDefaultWriter;
     }
 
+//    @Override
+//    public String toString() {
+//        return "FieldModel{" +
+//                "name='" + name + '\'' +
+//                ", type='" + type + '\'' +
+//                ", access=" + access +
+//                ", getHasDefaultReader=" + hasDefaultReader +
+//                ", hasDefaultWriter=" + hasDefaultWriter +
+//                '}';
+//    }
     @Override
     public String toString() {
-        return "FieldModel{" +
-                "name='" + name + '\'' +
-                ", type='" + type + '\'' +
-                ", access=" + access +
-                ", getHasDefaultReader=" + hasDefaultReader +
-                ", hasDefaultWriter=" + hasDefaultWriter +
-                '}';
+        return new StringBuilder()
+                .append("\n")
+                .append("(FieldModel\n")
+                .append("  :name \"").append(name).append("\"\n")
+                .append("  :type \"").append(type).append("\"\n")
+                .append("  :access ").append(access).append("\n")
+                .append("  :getHasDefaultReader ").append(hasDefaultReader).append("\n")
+                .append("  :hasDefaultWriter ").append(hasDefaultWriter).append(")")
+                .toString();
     }
+
 }

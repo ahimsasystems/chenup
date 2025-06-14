@@ -2,6 +2,7 @@ package com.ahimsasystems.chenup.core;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.sql.Connection;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -13,7 +14,7 @@ public interface PersistenceManager{
 
     public Object create(@NotNull Class interfaceClass);
 
-    public <T extends PersistenceCapable> T read(UUID id, Class interfaceClass) ;
+    public <T extends PersistenceCapable> T read(UUID id, Class interfaceClass, Connection conn) ;
 
     // These are the methods used more by the framework itself, not by the user.
     // I feel like they should be pulled from this interface and put into an extension interface.
@@ -32,6 +33,8 @@ public interface PersistenceManager{
 
         // Here's another example, to find all employments for a given person:
     // Example : SQL query could be "SELECT id FROM employment WHERE person_id = ?"
+
+
 
 
 }

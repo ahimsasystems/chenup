@@ -26,7 +26,8 @@ public class JavaCodeGenerator {
 
 
         }
-    }
+
+     }
 
     private void generateEntityCode(EntityModel entityModel, ProcessingEnvironment processingEnv) throws IOException {
         JavaFileObject file = processingEnv.getFiler().createSourceFile(entityModel.getPackageName() + "." + entityModel.getName() + "Impl");
@@ -57,6 +58,20 @@ public class JavaCodeGenerator {
                 "capName", capitalize(fieldModel.getName())
         ));
 
+        // Skip the fields with built-in implementations.
+        switch (fieldModel.getName()) {
+            case "id", "currentTime", "clock" -> {
+                return;
+            }
+        }
+
+        // Skip fields that have a default reader or writer.
+        // ToDo: Convince yourself that this is correct.
+        // I suspect it is, if either or both are overriden, then this is probably a computed field of some kind, and we don't want to generate the default code for it.
+        if (fieldModel.getHasDefaultReader() || fieldModel.getHasDefaultWriter()) {
+            return;
+        }
+        
 
 
         writer.write(fieldSource);
@@ -66,7 +81,6 @@ public class JavaCodeGenerator {
 
     public void generateRelationshipCode(Set<RelationshipModel> relationshipModels, ProcessingEnvironment processingEnv) throws IOException {
 
-        System.err.println("*** Generating code for relationships: " + relationshipModels);
 
         for (RelationshipModel relationshipModel : relationshipModels) {
 
@@ -92,7 +106,6 @@ public class JavaCodeGenerator {
             }
 
             for (EntityModel entity : relationshipModel.getEntities().values()) {
-                System.err.println("*** Generating code for entity field: " + entity.getName());
                 writer.write(fieldTemplate.render(Map.of(
                         "type", entity.getName() + "Impl",
                         "name", decapitalize(entity.getName()),
@@ -121,12 +134,13 @@ public class JavaCodeGenerator {
                 
                 private $(type) $(name);
                 
-                public $(type) get$(capName)() {
+                synchronized public $(type) get$(capName)() {
                     return $(name);
                 }
                 
-                public void set$(capName)($(type) $(name)) {
+                synchronized public void set$(capName)($(type) $(name)) {
                     this.$(name) = $(name);
+                    getPersistenceManager().dirty(this);
                 }
                 """;
 
@@ -134,7 +148,7 @@ public class JavaCodeGenerator {
     String entityHeaderTemplateString = """
                 package $(packageName);
                 
-                public class $(name)Impl extends com.ahimsasystems.chenup.core.AbstractPersistenceCapable implements $(name)  {
+                public class $(name)Impl extends com.ahimsasystems.chenup.postgresdb.PostgresAbstractPersistenceCapable implements $(name)  {
                 """;
 
     String entityFooterTemplateString = """
@@ -156,7 +170,7 @@ public class JavaCodeGenerator {
         // Hard coded for now, needs to be templatized.
 
 
-        JavaFileObject file = processingEnv.getFiler().createSourceFile("com.example.PersistenceInitializer");
+        JavaFileObject file = processingEnv.getFiler().createSourceFile("com.example.MyPersistenceInitializer");
         try (Writer writer = file.openWriter()) {
             writer.write("""
                   package com.example;
@@ -166,12 +180,17 @@ public class JavaCodeGenerator {
 
 import com.ahimsasystems.chenup.core.PersistenceManager;
 import jakarta.enterprise.context.ApplicationScoped;
+import io.quarkus.runtime.annotations.RegisterForReflection;
+import jakarta.enterprise.context.RequestScoped;
+
+
 
 import java.util.function.Supplier;
 
                 // This class will be generated so that its dependence on generated code wiill not cause compile errors.
-@ApplicationScoped
-public class PersistenceInitializer implements com.ahimsasystems.chenup.core.PersistenceInitializer {
+@RequestScoped
+@RegisterForReflection
+public class MyPersistenceInitializer implements com.ahimsasystems.chenup.core.PersistenceInitializer {
     public void registerAll(PersistenceManager pm) {
 
             // Register all classes that need to be persisted.

@@ -79,7 +79,6 @@ public class EntityProcessor extends AbstractProcessor {
         entityTypeNameIndex = entityModels.stream().collect(Collectors.toMap(EntityModel::getFullName, Function.identity()));
 
 
-        System.err.println("Entity Type Name Index: " + entityTypeNameIndex);
 
         for (Element e : roundEnv.getElementsAnnotatedWith(Relationship.class)) {
             Class x = Relationship.class;
@@ -121,10 +120,8 @@ public class EntityProcessor extends AbstractProcessor {
                     String memberName = decapitalize(name.substring(3));
 
                     // Is this an entity?
-                    System.err.println("*** " + returnType + " ***");
                     if (entityTypeNameIndex.containsKey(returnType)) {
                         // If the field is an entity, we can skip it for now.
-                        System.err.println("Found an entity: " + returnType);
                         continue;
                     }
 
@@ -145,11 +142,9 @@ public class EntityProcessor extends AbstractProcessor {
                     String param = method.getParameters().get(0).getSimpleName().toString();
 
                     // Is this an entity?
-                    System.err.println("*** " + returnType + " ***");
                     if (entityTypeNameIndex.containsKey(paramType)) {
                         EntityModel entityModel = entityTypeNameIndex.get(paramType);
                         // If the field is an entity, we can skip it for now.
-                        System.err.println("Found an entity: " + paramType);
                         relationshipEntities.put(field, entityModel);
                         ;
                     }
@@ -173,7 +168,6 @@ public class EntityProcessor extends AbstractProcessor {
                     entityModels.add(entityModel);
 
             } else if (modelType == ModelType.RELATIONSHIP) {
-                    System.err.println("Processing Relationship: " + interfaceName + " in package: " + packageName);
                     var relationshipModel = new RelationshipModel(
                             packageName,
                             interfaceName,
@@ -182,7 +176,6 @@ public class EntityProcessor extends AbstractProcessor {
                     );
                     relationshipModels.add(relationshipModel);
 
-                    System.err.println("Relationship Model: " + relationshipModel);
                 }
             else {
                 System.err.println("Unknown annotation type: " + modelType);

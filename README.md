@@ -25,7 +25,10 @@ One goal of chenup is to be fully reversible, that is, a database designed with 
 * There are no nulls. In relationships, nulls are not needed because it is simply that the row is deleted. ~~For convenience functions, like getEmployer(), at first this will always be expected to return a collection, which may be empty. We will see how well this wears in practice. The intent is to avoid nulls as much as possible, but this may be too restrictive in some cases.~~
 * Objects are created by the PersistenceManager, and that means they may be created outside a transaction. This encourages doing all business logic in a 'detached' state, outside a database transaction. This is a significant difference from JPA, which while it allows for detached entities to minimize transaction time, the need to only create entities inside a transaction makes this impossible in practice since most business logic will create new entities and relationships. This should allow for extremely short transactions, since the transactions are needed only to read in initial state, and then in a separate transaction to upsert the changes. This can be safely done because chunup uses optimistic locking based on version numbers. This makes it feasible to have database transactions that are at most only a few seconds long, possibly matching FoundationDB's maximum transaction length of 5 seconds. It is even tempting to imagine that transactions can be transparent to the user, allowing each individual database read to operate in its own transaction, or to provide a mechanism for loading a tree of objects in one transaction, but this is not yet implemented and may not be feasible in practice. A large part of the purpose of chenup is to allow for such experimentation.
 * chenup avoids polluting the business tables with meta data like version numbers, create and update timestamps, etc., by storing this in a separate table named 'Thing', which is also the owner of the IDs for all entity and relationship tables, which have primary keys that are linked as foreign keys to the Thing table.
-* chenup is also a frankly didactic exercise. By using code generation the developer can see how various features such as dirtying an object are implemented. 
+* chenup is also a frankly didactic exercise. By using code generation the developer can see how various features such as dirtying an object are implemented.
+* The ability to hold objects in memory without a transaction also allows for the reasonable use of rule-based systems. There is little point in using a rule-based system optimized using for example the Rete algorithm or Horn clauses if the objects must be flushed after each transaction/session.
+* chenup also allows for automating many of the boilerplate schemas, triggers, etc., that are needed to properly implement an E-R model in a relational database. This is a work in progress for release 0.1, but preliminary templates are provided to assist the users in creating the necessary database objects. Based on experience with these templates, the schema generation will be automated. 
+* And finally, chenup is also an experimental engineering platform that allows for the exploration of new ideas and their evaluation under real-world conditions.
 
 
 Future capabilities may include the following:
@@ -34,10 +37,50 @@ Future capabilities may include the following:
 * Modeling union types using a combination of the @Union annotation and sealed interfaces. Correct SQL constraints will be generated.
 * The ability to replace various parts of the implementation with custom plugins, including the user's desired key generation algorithm.
 * The ability for a user to provide their own key. Just as a note, this probably will need to be a key to a key so that the internal UUIDv7 key structure is preserved.
+* A 'default' ontology, probably based on NIEM.
 
 A non-goal was direct compatibility with any existing ORM tool or library, or any standard such as JPA. The annotations used in some cases match the names of annotations from JPA or JDO, but the semantics are generally different.
 
-## Usage
+## chenup vs. JDO and JPA
+
+| Feature                                                          | chenup                                  | JDO                             | JPA                             |
+|------------------------------------------------------------------|-----------------------------------------|---------------------------------|---------------------------------|
+| Entities                                                         | Yes                                     | Yes                             | Yes                             |
+| Relationships                                                    | Yes, first-class citizens               | No                              | No                              |
+| Attributes                                                       | Yes                                     | Yes                             | Yes                             |
+| Java records                                                     | Yes, including user-defined types       | No                              | No                              |
+| Value Types                                                      | Yes<br/>Java records and UDTs in the DB | Yes<br/>Embedded at field level | Yes<br/>Embedded at class level |
+| Supports user-defined types (UDTs) in the database               | Yes, in Postgres                        | No                              | No                              |
+| Create objects outside a transaction                             | Yes                                     | Yes                             | No                              |
+| Business Logic in Interfaces                                     | Yes, using default methods              | No                              | No                              |
+| Code Generation                                                  | Yes, using annotation processor         | No                              | No                              |
+| Consistent with AOT compilation / GraalVM                        | Yes                                     | No                              | No                              |
+| No bytecode enhancement                                          | Yes                                     | No                              | No                              |
+| No proxies                                                       | Yes                                     | No                              | No                              |
+| No reflection                                                    | Yes                                     | No                              | No                              |
+| No nulls                                                         | Yes                                     | No                              | No                              |
+| Detached Objects                                                 | Yes                                     | Yes                             | Yes                             |
+| Identity preserved on merge                                      | Yes                                     | Yes                             | No                              |
+| Optimistic Locking                                               | Yes, using version numbers              | Yes                             | Yes                             |
+| Short Transactions                                               | Yes                                     | No                              | No                              |
+| No pollution of business tables                                  | Yes, using Thing table                  | No                              | No                              |
+| Reversible                                                       | Yes                                     | No                              | No                              |
+| Schema Generation                                                | Yes, templates provided                 | No                              | No                              |
+| Can be used with non-relational databases                        | Yes                                     | Yes                             | No                              |
+| Virtual threads                                                  | Yes                                     | No                              | No                              |
+| Actor model                                                      | Yes (coming)                            | No                              | No                              |
+| External database updates allowed<br/>DB is not just a bitbucket | Yes                                     | No                              | No                              |
+| No mapping descriptors required (convention over configuration)  | Yes                                     | No                              | No                              |
+| Sealed interfaces / union types                                  | Yes (coming)                            | No                              | No                              |
+| Bi-temporal support                                              | Yes (coming)                            | No                              | No                              |
+| Garbage collection of objects                                    | Yes (coming)                            | No                              | No                              |
+| Distributed synchronization of objects                           | Yes (coming)                            | No                              | No                              |
+| FoundationDB support                                             | Yes (coming)                            | No                              | No                              |
+| Lazy schema evolution                                            | Yes (coming in FoundationDB)            | No                              | No                              |
+
+
+
+## Usage (under construction)
 
 If you are generating the code, you must include the following:
 
