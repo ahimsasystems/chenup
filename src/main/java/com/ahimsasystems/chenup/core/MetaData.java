@@ -63,6 +63,7 @@ public class MetaData {
         this.version = version;
     }
     public void incrementVersion() {
+        System.out.println("Incrementing version to: " + (this.version + 1));
         this.version++;
         this.lastUpdateDateTime = Instant.now(); // Update last update time when version is incremented
     }

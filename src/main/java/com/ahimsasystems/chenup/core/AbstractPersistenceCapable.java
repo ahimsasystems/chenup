@@ -1,5 +1,6 @@
 package com.ahimsasystems.chenup.core;
 
+import jakarta.json.bind.annotation.JsonbTransient;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Clock;
@@ -14,6 +15,7 @@ public abstract class AbstractPersistenceCapable implements PersistenceCapable {
     private UUID id = UUIDv7Generator.generateUUIDv7(); // Default to a new UUID if not set
 
     // Use a default clock for timestamps, can be overridden if needed
+    @JsonbTransient
     private Clock clock = Clock.systemUTC();
 
     public Clock getClock() {

@@ -1,12 +1,11 @@
 package com.ahimsasystems.chenup.postgresdb;
 
-import com.ahimsasystems.chenup.core.Mapper;
 import com.ahimsasystems.chenup.core.PersistenceCapable;
 import com.ahimsasystems.chenup.core.PersistenceManager;
-import com.ahimsasystems.chenup.core.exceptions.DeletedObjectAccessException;
-import com.ahimsasystems.chenup.postgresdb.PostgresPersistenceManager;
 import org.postgresql.util.PGobject;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.RecordComponent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -24,7 +23,7 @@ import java.util.UUID;
  * Subclasses must implement the `mapFields` method for the specific type they are mapping.
  * This design follows the Template Method pattern, allowing subclasses to define specific mapping logic while reusing the common retrieval logic.
  */
-public abstract class PostgresAbstractMapper implements Mapper {
+public abstract class PostgresAbstractMapper implements PostgresMapper {
     private PostgresPersistenceManager persistenceManager; // <-- Can this just be made a PersistenceManager? Or does it need to be a PostgresPersistenceManager?
 
 
@@ -44,7 +43,9 @@ public abstract class PostgresAbstractMapper implements Mapper {
 //        return this.getPersistenceManager().getConnection();
 //    }
 
-    public PersistenceCapable read(UUID id, Connection conn) {
+    public PersistenceCapable read(UUID id, PostgresContext context) {
+
+        Connection conn = context.getConnection();
 
 
 
@@ -61,7 +62,7 @@ public abstract class PostgresAbstractMapper implements Mapper {
             try (ResultSet rs = stmt.executeQuery()) {
 
                 // Has to pass a connection because getting a Relationship may require pulling in entities from the database.
-                result = (PostgresAbstractPersistenceCapable) getRecord(rs, conn);  // Cast to PersistenceCapable, assuming getRecord returns a PersistenceCapable object
+                result = (PostgresAbstractPersistenceCapable) getRecord(rs, context);  // Cast to PersistenceCapable, assuming getRecord returns a PersistenceCapable object
 
 
 
@@ -76,7 +77,7 @@ public abstract class PostgresAbstractMapper implements Mapper {
         }
 
         // get desired metadata for this id
-        // At this point we are only checking if the record is marked as deleted.
+        // At this point we are only checking version and if the record is marked as deleted.
 
         boolean deleted = false;
         int version = -1;
@@ -106,7 +107,9 @@ public abstract class PostgresAbstractMapper implements Mapper {
 
     }
 
-    public void upsert(PersistenceCapable object, Connection conn) {
+    public void upsert(PersistenceCapable object, PostgresContext context) {
+        Connection conn = context.getConnection();
+
         String sql = upsertSql();  // Use the method to get the SQL query
 
         // Downcast to PostgresAbstractPersistenceCapable to access getMetaData()
@@ -160,7 +163,7 @@ public abstract class PostgresAbstractMapper implements Mapper {
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 
 
-            setRecord(stmt, object);
+            setRecord(stmt, object, context);  // Set the record fields in the PreparedStatement
 
             stmt.executeUpdate();
 
@@ -171,7 +174,8 @@ public abstract class PostgresAbstractMapper implements Mapper {
 
     /** Delete can be done in the AbstractMapper since deleting from the THING table should induce a cascade delete in the related tables, and there is no individual logic needed for delete like there is for upsert and read.
     */
-    public void delete(PersistenceCapable object, Connection conn) {
+    public void delete(PersistenceCapable object, PostgresContext context) {
+        var conn = context.getConnection();
         String sql = "DELETE FROM THING WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setObject(1, object.getId());
@@ -183,11 +187,11 @@ public abstract class PostgresAbstractMapper implements Mapper {
 
     protected abstract String upsertSql();
 
-    protected abstract void setRecord(PreparedStatement stmt, PersistenceCapable object) throws SQLException;
+    protected abstract void setRecord(PreparedStatement stmt, PersistenceCapable object, PostgresContext context) throws SQLException;
 
     protected abstract String getReadSql();
 
-    protected abstract Object getRecord(ResultSet rs, Connection connection) throws SQLException;
+    protected abstract Object getRecord(ResultSet rs, PostgresContext context) throws SQLException;
 
     // These methods for parsing and unparsing PgRecords should be moved to PostgresAbstractMapper or a utility class.
     public static List<String> parsePgRecord(String record) {
@@ -264,5 +268,57 @@ public abstract class PostgresAbstractMapper implements Mapper {
         pg.setValue(unparsePgRecord(fields));
         return pg;
     }
+
+
+    public static <T> T toRecord(String compositeString, Class<T> recordClass) {
+        try {
+            List<String> parts = parsePgRecord(compositeString);
+            Constructor<?> canonical = recordClass.getDeclaredConstructors()[0];
+            Class<?>[] types = canonical.getParameterTypes();
+            Object[] args = new Object[types.length];
+            for (int i = 0; i < types.length; i++) {
+                if (parts.get(i) == null) {
+                    args[i] = null;
+                } else if (types[i] == int.class || types[i] == Integer.class) {
+                    args[i] = Integer.parseInt(parts.get(i));
+                } else if (types[i] == long.class || types[i] == Long.class) {
+                    args[i] = Long.parseLong(parts.get(i));
+                } else if (types[i] == boolean.class || types[i] == Boolean.class) {
+                    args[i] = Boolean.parseBoolean(parts.get(i));
+                } else if (types[i] == String.class) {
+                    args[i] = parts.get(i);
+                } else {
+                    throw new UnsupportedOperationException("Type " + types[i] + " not supported");
+                }
+            }
+            return recordClass.cast(canonical.newInstance(args));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to convert to record", e);
+        }
+    }
+
+    public static String serializeToPostgresComposite(Object record) {
+        try {
+            RecordComponent[] components = record.getClass().getRecordComponents();
+            List<String> parts = new ArrayList<>();
+            for (RecordComponent component : components) {
+                Object value = component.getAccessor().invoke(record);
+                if (value == null) {
+                    parts.add("");
+                } else if (value instanceof String s) {
+                    String escaped = s.replace("\"", "\"\"");
+                    parts.add("\"" + escaped + "\"");
+                } else {
+                    parts.add(value.toString());
+                }
+            }
+            return "(" + String.join(",", parts) + ")";
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize record to composite string", e);
+        }
+    }
+
+
+
     // END WARNING
 }

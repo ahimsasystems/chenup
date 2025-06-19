@@ -46,14 +46,69 @@ import java.util.function.Supplier;
 public class PostgresPersistenceManager extends AbstractPersistenceManager {
     private final Map<Class, Supplier> mapperRegistry = new HashMap<>();
     private final Map<Class, Supplier> typeRegistry = new HashMap<>();
-    final private Map<UUID, PersistenceCapable> persistentNew = new HashMap<>();
     final private Map<UUID, PersistenceCapable> persistentAll = new HashMap<>();
-    final private Map<UUID, PersistenceCapable> persistentDirty = new HashMap<>();
     final private Map<UUID, Class> persistentInterfaceTypes = new HashMap<>();
 
-    private Map<UUID, PersistenceCapable> getPersistentNew() {
-        return persistentNew;
-    }
+    final private PersistenceState state = new PersistenceState();
+
+
+    final private Map<UUID, PersistenceCapable> persistentNew = new HashMap<>();
+    final private Map<UUID, PersistenceCapable> persistentDirty = new HashMap<>();
+
+
+//    public void setDirty(@NotNull PersistenceCapable object) {
+//        // Mark the object as dirty, meaning it has been modified and needs to be persisted.
+//        // This could involve updating its state in the persistentDirty collection or similar.
+//        UUID id = object.getId();
+//        if (id != null && persistentAll.containsKey(id)) {
+//            persistentDirty.put(id, object);
+//        }
+//    }
+//
+////    public boolean isDirty(@NotNull PersistenceCapable object) {
+////        // Check if the object is dirty, meaning it has been modified and needs to be persisted.
+//        UUID id = object.getId();
+//        return id != null && persistentDirty.containsKey(id);
+//    }
+//
+//    public void clearDirty(@NotNull PersistenceCapable object) {
+//        // Clear the dirty state of the object, meaning it has been persisted and no longer needs to be updated.
+//        // This could involve removing it from the persistentDirty collection.
+//        UUID id = object.getId();
+//        if (id != null) {
+//            persistentDirty.remove(id);
+//        }
+//    }
+//
+//    public void setNew(@NotNull PersistenceCapable object) {
+//        // Mark the object as new, meaning it has been created but not yet persisted to the database.
+//        // This could involve adding it to the persistentNew collection.
+//        UUID id = object.getId();
+//        if (id != null) {
+//            persistentNew.put(id, object);
+//         }
+//    }
+//
+//    public boolean isNew(@NotNull PersistenceCapable object) {
+//        // Check if the object is new, meaning it has been created but not yet persisted to the database.
+//        UUID id = object.getId();
+//        return id != null && persistentNew.containsKey(id);
+//    }
+//
+//    public void clearNew(@NotNull PersistenceCapable object) {
+//        // Clear the new state of the object, meaning it has been persisted and no longer needs to be created.
+//        // This could involve removing it from the persistentNew collection.
+//        UUID id = object.getId();
+//        if (id != null) {
+//            persistentNew.remove(id);
+//        }
+//    }
+
+
+
+//    private Map<UUID, PersistenceCapable> getPersistentNew() {
+//        return persistentNew;
+//    }
 
     public void registerMapper(Class theClass, Supplier mapperConstructor) {
         mapperRegistry.put(theClass, mapperConstructor);
@@ -66,9 +121,9 @@ public class PostgresPersistenceManager extends AbstractPersistenceManager {
 
     }
 
-    public Map<UUID, PersistenceCapable> getPersistentAll() {
-        return persistentAll;
-    }
+//    public Map<UUID, PersistenceCapable> getPersistentAll() {
+//        return persistentAll;
+//    }
 
 
 
@@ -84,13 +139,15 @@ public class PostgresPersistenceManager extends AbstractPersistenceManager {
         }
 
 
-        persistentNew.put(((PersistenceCapable) instance).getId(), (PersistenceCapable) instance);
         persistentAll.put(((PersistenceCapable) instance).getId(), (PersistenceCapable) instance);
-
         persistentInterfaceTypes.put(((PersistenceCapable) instance).getId(), interfaceClass);
-
-
         ( (PostgresAbstractPersistenceCapable) instance).setPersistenceManager(this);
+
+
+
+        persistentNew.put(((PersistenceCapable) instance).getId(), (PersistenceCapable) instance);
+        // setNew((PersistenceCapable) instance);
+
 
         return instance;
     }
@@ -99,7 +156,7 @@ public class PostgresPersistenceManager extends AbstractPersistenceManager {
     /**
      * Note that this uses Bloch's (from 3rd ed.) Item 33: Consider typesafe heterogeneous containers.
      */
-    public synchronized <T extends PersistenceCapable> T read(UUID id, Class interfaceClass, Connection conn) {
+    public synchronized <T extends PersistenceCapable> T read(UUID id, Class interfaceClass, PostgresContext context) {
 
         if (persistentAll.containsKey(id)) {
             return (T) persistentAll.get(id);
@@ -115,7 +172,7 @@ public class PostgresPersistenceManager extends AbstractPersistenceManager {
             PostgresAbstractMapper mapper = (PostgresAbstractMapper) mapperConstructor.get();
 
             mapper.setPersistenceManager(this);
-            var result = (T) mapper.read(id, conn);
+            var result = (T) mapper.read(id, context);
 
             // This must be a PostgresAbstractPersistenceCapable object, which extends AbstractPersistenceCapable, which implements PersistenceCapable. So we can downcast it so we can access the metadata.
             PostgresAbstractPersistenceCapable pcap = (PostgresAbstractPersistenceCapable) result;
@@ -141,11 +198,9 @@ public class PostgresPersistenceManager extends AbstractPersistenceManager {
 
     public void dirty(@NotNull PersistenceCapable object) {
         // Mark the object as dirty, meaning it has been modified and needs to be persisted.
-        // This could involve updating its state in the persistentNew collection or similar.
         UUID id = object.getId();
-        if (id != null && persistentAll.containsKey(id)) {
-            persistentDirty.put(id, object);
-        }
+        persistentDirty.put(id, object);
+
     }
 
     /**
@@ -156,14 +211,25 @@ public class PostgresPersistenceManager extends AbstractPersistenceManager {
      * * Note that this method does not commit the transaction; it only writes them to the database but does not commit the transaction.
      * That will normally happen at the end of a @Transactional method in the service layer or wherever the transaction management is handled.
      *
-     * @param conn The database connection to use for flushing the changes.
+     * @param context The database connection to use for flushing the changes.
      * @throws SQLException If there is an error during the database operation.
      */
-    public void flush(Connection conn) throws SQLException {
+    public void flush(PostgresContext context) throws SQLException {
 
 
+        for (PersistenceCapable pc : persistentNew.values()) {
+            System.out.println("********** + " + pc.getId() + " is in persistentNew, which is not yet flushed. It will be flushed now.");
+        }
 
-        List<UUID> removalIDs = new ArrayList<>();
+        for (PersistenceCapable pc : persistentDirty.values()) {
+            System.out.println("********** + " + pc.getId() + " is in persistentDirty, which is not yet flushed. It will be flushed now.");
+        }
+
+        boolean noOverlap = Collections.disjoint(persistentNew.keySet(), persistentDirty.keySet());
+        assert(!noOverlap) : "persistentNew and persistentDirty collections must not overlap. Please ensure that an object is either in persistentNew or persistentDirty, but not both.";
+
+
+        List<UUID> newRemovalIDs = new ArrayList<>();
         // Iterate over the persistentNew collection and insert new objects
         for (PersistenceCapable newObject : persistentNew.values()) {
 
@@ -177,20 +243,25 @@ public class PostgresPersistenceManager extends AbstractPersistenceManager {
             mapper.setPersistenceManager(this);
 
 
-            mapper.upsert(newObject, conn);
+            mapper.upsert(newObject, context);
             // Remove the object from persistentNew after upserting
-            // persistentNew.remove(newObject.getId());
 
-            removalIDs.add(newObject.getId());
+            newRemovalIDs.add(newObject.getId());
+
+            System.out.println("Flushing new object: " + newObject.getId() + " of type " + interfaceClass.getName());
 
 
         }
 
         // Remove all new objects from persistentNew after flushing
-        for (UUID id : removalIDs) {
+        for (UUID id : newRemovalIDs) {
+            System.out.println("Removing " + id + " from persistentNew after flushing.");
+            // clearNew(persistentNew.get(id));
             persistentNew.remove(id);
         }
-        removalIDs.clear();
+        newRemovalIDs.clear();
+
+        List<UUID> dirtyRemovalIDs = new ArrayList<>();
 
         // Iterate over the persistentDirty collection and update existing objects
         for (PersistenceCapable dirtyObject : persistentDirty.values()) {
@@ -201,20 +272,27 @@ public class PostgresPersistenceManager extends AbstractPersistenceManager {
             mapper.setPersistenceManager(this);
 
 
-            mapper.upsert(dirtyObject, conn);
+            mapper.upsert(dirtyObject, context);
             // Remove the object from persistentNew after upserting
             // persistentNew.remove(newObject.getId());
 
-            removalIDs.add(dirtyObject.getId());
+            dirtyRemovalIDs.add(dirtyObject.getId());
+
+            System.out.println("Flushing dirty object: " + dirtyObject.getId() + " of type " + interfaceClass.getName());
 
 
         }
 
         // Remove all new objects from persistentNew after flushing
-        for (UUID id : removalIDs) {
+        for (UUID id : dirtyRemovalIDs) {
+            System.out.println("Removing " + id + " from persistentDirty after flushing.");
+            // clearDirty(persistentDirty.get(id));
             persistentDirty.remove(id);
         }
-        removalIDs.clear();
+        dirtyRemovalIDs.clear();
+
+        assert persistentNew.isEmpty() : "persistentNew should be empty after flushing.";
+        assert persistentDirty.isEmpty() : "persistentDirty should be empty after flushing.";
     }
 
 }

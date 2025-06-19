@@ -107,7 +107,10 @@ public class JavaCodeGenerator {
 
             for (EntityModel entity : relationshipModel.getEntities().values()) {
                 writer.write(fieldTemplate.render(Map.of(
-                        "type", entity.getName() + "Impl",
+
+                        // "type", entity.getName() + "Impl",
+                        "type", entity.getName() ,
+
                         "name", decapitalize(entity.getName()),
                         "capName", capitalize(decapitalize(entity.getName()))
                 )));

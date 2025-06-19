@@ -1,5 +1,7 @@
-package com.ahimsasystems.chenup.core;
+package com.ahimsasystems.chenup.postgresdb;
 
+import com.ahimsasystems.chenup.core.PersistenceCapable;
+import com.ahimsasystems.chenup.core.PersistenceManager;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
@@ -14,12 +16,12 @@ import java.util.UUID;
  * particular persistence technology, allowing for flexibility in implementation.
  *
  */
-public interface Mapper {
+public interface PostgresMapper {
 
     /** This always returns a new instance of the object and does not check to see if it has already been read and cached in the PersistenceManager.
      * It is the job of the PersistenceManager to cache objects and return them if they have already been read, and otherwise to call this method.
      */
-    public PersistenceCapable read(@NotNull UUID id, Connection conn);
+    public PersistenceCapable read(@NotNull UUID id, PostgresContext context);
 
 
     /** insert and update make assumptions that need to be checked before they are called.
@@ -30,7 +32,7 @@ public interface Mapper {
      * @param object
      * @throws SQLException
      */
-    public void upsert(@NotNull PersistenceCapable object, Connection connection) throws SQLException;
+    public void upsert(@NotNull PersistenceCapable object, PostgresContext context) throws SQLException;
 
 
     // This shouldn't be necessary at this level because it is implementation-specific.

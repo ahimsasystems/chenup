@@ -1,5 +1,6 @@
 package com.ahimsasystems.chenup.core;
 
+import com.ahimsasystems.chenup.postgresdb.PostgresContext;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
@@ -14,7 +15,7 @@ public interface PersistenceManager{
 
     public Object create(@NotNull Class interfaceClass);
 
-    public <T extends PersistenceCapable> T read(UUID id, Class interfaceClass, Connection conn) ;
+    public <T extends PersistenceCapable> T read(UUID id, Class interfaceClass, PostgresContext context) ;
 
     // These are the methods used more by the framework itself, not by the user.
     // I feel like they should be pulled from this interface and put into an extension interface.

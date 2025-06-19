@@ -1,13 +1,14 @@
 package com.ahimsasystems.chenup.foundationdb;
 
 
+import com.apple.foundationdb.ApiVersion;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDB;
 import com.apple.foundationdb.tuple.Tuple;
 
 public class FdbApp {
     public static void main(String[] args) {
-        FDB fdb = FDB.selectAPIVersion(620); // match your installed FDB version
+        FDB fdb = FDB.selectAPIVersion(ApiVersion.LATEST); // match your installed FDB version
         try (Database db = fdb.open()) {
             // Set a value
             db.run(tr -> {

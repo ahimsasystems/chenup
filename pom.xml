@@ -66,6 +66,21 @@
             <version>7.3.47</version>
         </dependency>
 
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-jsonb</artifactId>
+            <version>${quarkus.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>2.3.34</version>
+        </dependency>
+
+
+
+
     </dependencies>
 
     <build>
@@ -76,6 +91,13 @@
                     <include>META-INF/**</include>
                 </includes>
             </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*.ftl</include>
+                </includes>
+            </resource>
+
         </resources>
 
         <plugins>
