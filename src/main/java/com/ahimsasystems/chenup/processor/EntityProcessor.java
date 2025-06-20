@@ -61,6 +61,8 @@ public class EntityProcessor extends AbstractProcessor {
 
                 generateMappers(entityModels);
 
+                generateMappers(relationshipModels);
+
 
 //                for (RelationshipModel relationshipModel : relationshipModels) {
 //                    System.out.println("Generating code for relationship: " + relationshipModel.getName());
@@ -210,22 +212,44 @@ public class EntityProcessor extends AbstractProcessor {
                     continue;
                 }
 
-                // For the moment, skip if a record / UDT type.
-//                if (field.getType().equals("com.example.Name")) {
-//                    continue;
-//                }
 
 
                 Map<String, Object> fieldModel = new HashMap<>();
                 fieldModel.put("name", field.getName());
                 fieldModel.put("sqlName", toSnakeCase(field.getName()));
                 fieldModel.put("jdbcType", field.getType());
+
+                // TODO: Shouldn't hard code this. But not sure how to build this dynamically.
+                fieldModel.put("udt", false);
+                fieldModel.put("udtType", "NotUDT");
+                System.out.println("!!!!!!field.getType() = " + field.getType());
                 if (field.getType().equals("com.example.PersonName")) {
                     fieldModel.put("udt", true);
                     fieldModel.put("udtType", "person_name");
                 } else {
                     fieldModel.put("udt", false);
                 }
+
+                // TODO: Shouldn't hard code this. This should be easy to build dynamically.
+                // Note that the current Freemarker logic requires it to be a UDT and an entity. Probably should change that. entity should be enough.
+
+                // TODO: This is a hack to determine if the field is an entity. Should be done more efficiently.
+                fieldModel.put("entity", false);
+                for (EntityModel entityModel : entityModels) {
+                    if (field.getType().equals(entityModel.getFullName())) {
+                        fieldModel.put("udt", true);
+                        fieldModel.put("entity", true);
+                        break;
+                    }
+                }
+
+//                if (field.getType().equals("com.example.Person") || field.getType().equals("com.example.Organization")) {
+//                    fieldModel.put("udt", true);
+//                    fieldModel.put("entity", true);
+//                } else {
+//                    fieldModel.put("entity", false);
+//                }
+
                 fieldModels.add(fieldModel);
             }
 

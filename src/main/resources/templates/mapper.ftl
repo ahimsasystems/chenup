@@ -49,20 +49,26 @@ obj.setPersistenceManager(context.getPersistenceManager());
 obj.setId(rs.getObject("id", UUID.class));
 
 <#list fields as field>
-<#if field.udt?? && field.udt>
-
-           var pgobject = (PGobject) rs.getObject("${field.sqlName}");
-           ${field.jdbcType} record = toRecord(pgobject.getValue(), ${field.jdbcType}.class);
-           obj.set${field.name?cap_first}(record);
-
-
-
-
-
+    <#if field.udt?? && field.udt>
+        <#if field.entity?? && field.entity>
+        // Entity reference: fetch only the ID
+        {
+            UUID ${field.name}Id = rs.getObject("${field.sqlName}", UUID.class);
+            ${field.jdbcType} entity = context.getPersistenceManager().read(${field.name}Id, ${field.jdbcType}. class,
+            context);
+            obj.load${field.name?cap_first}(entity);
+        }
+        <#else>
+        // Embedded record: parse the UDT JSON or string representation
+        var pgobject = (PGobject) rs.getObject("${field.sqlName}");
+            ${field.jdbcType} record = toRecord(pgobject.getValue(), ${field.jdbcType}.class);
+        obj.load${field.name?cap_first}(record);
+        </#if>
     <#else>
-        obj.set${field.name?cap_first}(rs.getObject("${field.sqlName}", ${field.jdbcType}.class));
+    obj.load${field.name?cap_first}(rs.getObject("${field.sqlName}", ${field.jdbcType}.class));
     </#if>
-    </#list>
+</#list>
+
 
     return obj;
 

@@ -13,6 +13,10 @@ public class ${className} extends com.ahimsasystems.chenup.postgresdb.PostgresAb
     this.${field.name} = ${field.name};
     getPersistenceManager().dirty(this);
     }
+
+        synchronized public void load${field.name?cap_first}(${field.type} ${field.name}) {
+            this.${field.name} = ${field.name};
+        }
 </#list>
 
 }
